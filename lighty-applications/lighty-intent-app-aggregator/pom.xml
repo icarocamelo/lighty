@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (c) 2026 icarocamelo. All Rights Reserved.
+
+  This program and the accompanying materials are made available under the
+  terms of the Eclipse Public License v1.0 which accompanies this distribution,
+  and is available at https://www.eclipse.org/legal/epl-v10.html
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.lighty.applications.intent</groupId>
+    <artifactId>lighty-intent-app-aggregator</artifactId>
+    <version>23.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>
+        Runnable lighty.io application exposing intent-driven-management (lighty-intent-core,
+        lighty-intent-transport, lighty-intent-ran, lighty-intent-nl-client) over RESTCONF.
+        Mirrors the layout of lighty-rnc-app-aggregator: lighty-intent-module (the
+        AbstractLightyModule wiring), lighty-intent-app (the runnable distribution), and
+        lighty-intent-app-docker (container packaging), see docs/intent-driven-management.md
+        section 9.
+    </description>
+
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>true</maven.install.skip>
+    </properties>
+
+    <modules>
+        <module>lighty-intent-module</module>
+        <module>lighty-intent-app</module>
+    </modules>
+
+    <profiles>
+        <profile>
+            <id>docker</id>
+            <modules>
+                <module>lighty-intent-app-docker</module>
+            </modules>
+        </profile>
+    </profiles>
+</project>

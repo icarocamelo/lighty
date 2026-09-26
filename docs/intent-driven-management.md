@@ -395,7 +395,7 @@ and moves the intent to `AWAITING_APPROVAL`:
 
 ```json
 {
-  "output": {
+  "lighty-intent:output": {
     "feasible": true,
     "domain-compiler": "lighty-intent-transport:transport",
     "rendered-config-json": "{\"lighty-intent-transport:transport-qos-config\":{\"qos-policy\":[{\"qos-class\":\"urllc\",\"min-bandwidth-mbps\":500,\"max-latency-ms\":5,\"applied-interface\":[\"ge0/0/1\"]}],\"network-instance\":[{\"name\":\"vrf-intent-transport-001\",\"interface\":[\"ge0/0/1\"]}]}}",
@@ -403,6 +403,10 @@ and moves the intent to `AWAITING_APPROVAL`:
   }
 }
 ```
+
+(RESTCONF wraps an RPC's output container under its module-qualified name,
+`lighty-intent:output`, not a bare `output` key — easy to miss when reading the
+YANG source, where the container is simply named `output`.)
 
 ### 8.3 Approve the intent (triggers actuation)
 
@@ -419,8 +423,13 @@ curl -u admin:admin -X POST \
 ```
 
 ```json
-{ "output": { "lifecycle-state": "DEPLOYING" } }
+{ "lighty-intent:output": { "lifecycle-state": "ACTIVE" } }
 ```
+
+`approve-intent` blocks until actuation finishes (bounded by a timeout inside
+`lighty-intent-core`), so it returns the intent's *final* state — `ACTIVE` on
+success or `FAILED` on a compilation, conflict, missing-actuator, or actuation
+error — never the transient `DEPLOYING` state it passes through internally.
 
 ### 8.4 Translate a natural-language request
 
@@ -438,7 +447,7 @@ curl -u admin:admin -X POST \
 
 ```json
 {
-  "output": {
+  "lighty-intent:output": {
     "status": "INTENT_DRAFTED",
     "draft-intent-json": "{\"lighty-intent:intent\":[{\"intent-id\":\"intent-nl-042\",\"intent-name\":\"NL request: edge link QoS\",\"domain\":\"lighty-intent-transport:transport\",\"source\":\"NL_SLM\",\"original-nl-text\":\"Guarantee at least 500 Mbps ...\",\"expectation\":[...]}]}",
     "confidence": 0.81

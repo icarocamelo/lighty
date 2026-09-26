@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (c) 2026 icarocamelo. All Rights Reserved.
+  ~
+  ~ This program and the accompanying materials are made available under the
+  ~ terms of the Eclipse Public License v1.0 which accompanies this distribution,
+  ~ and is available at https://www.eclipse.org/legal/epl-v10.html
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.lighty.core</groupId>
+        <artifactId>lighty-app-parent</artifactId>
+        <version>23.0.0-SNAPSHOT</version>
+        <relativePath>../../../lighty-core/lighty-app-parent/pom.xml</relativePath>
+    </parent>
+
+    <groupId>io.lighty.applications.intent</groupId>
+    <artifactId>lighty-intent-app</artifactId>
+    <version>23.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>
+        Runnable distribution of lighty.io's intent-driven-management application: parses a
+        --config-path argument, loads IntentAppConfiguration (or its defaults), starts
+        IntentAppModule, and registers a shutdown hook.
+    </description>
+
+    <properties>
+        <application.main.class>io.lighty.applications.intent.app.Main</application.main.class>
+        <application.attach.zip>true</application.attach.zip>
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.lighty.applications.intent</groupId>
+            <artifactId>lighty-intent-module</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.beust</groupId>
+            <artifactId>jcommander</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-subclass</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

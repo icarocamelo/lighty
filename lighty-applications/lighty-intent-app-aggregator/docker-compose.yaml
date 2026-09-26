@@ -1,0 +1,45 @@
+# Copyright (c) 2026 icarocamelo. All Rights Reserved.
+#
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License v1.0 which accompanies this distribution,
+# and is available at https://www.eclipse.org/legal/epl-v10.html
+#
+# Runs lighty.io's intent-driven-management application together with the
+# lighty-intent-slm NL-to-intent sidecar, on one network, matching this
+# repository's docs/intent-driven-management.md section 9 (Deployment).
+#
+# Build first:
+#   mvn -pl lighty-applications/lighty-intent-app-aggregator/lighty-intent-app-docker \
+#       -P docker -am install
+# Then:
+#   docker compose -f lighty-applications/lighty-intent-app-aggregator/docker-compose.yaml up
+#
+# lighty-intent's default example-config/configuration.json points the app's gNMI target at
+# host "transport-device" and its SLM sidecar base URL at "http://intent-slm:8000" - both
+# resolved here through Docker's own DNS by service name. Point "gnmi-target.host" at your real
+# transport device (or at a gNMI simulator/testbed container you add to this file) before use.
+services:
+  intent-slm:
+    build:
+      context: ../../lighty-intent-slm
+    image: lighty-intent-slm:latest
+    ports:
+      - "8000:8000"
+    networks:
+      - intent-net
+
+  lighty-intent:
+    image: lighty-intent:latest
+    depends_on:
+      - intent-slm
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./lighty-intent-app-docker/example-config/configuration.json:/lighty-intent/configuration.json:ro
+    command: ["-c", "/lighty-intent/configuration.json"]
+    networks:
+      - intent-net
+
+networks:
+  intent-net:
+    driver: bridge
