@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (c) 2026 icarocamelo. All Rights Reserved.
+  ~
+  ~ This program and the accompanying materials are made available under the
+  ~ terms of the Eclipse Public License v1.0 which accompanies this distribution,
+  ~ and is available at https://www.eclipse.org/legal/epl-v10.html
+  -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.lighty.core</groupId>
+        <artifactId>lighty-parent</artifactId>
+        <version>23.0.0-SNAPSHOT</version>
+        <relativePath>../../lighty-core/lighty-parent/pom.xml</relativePath>
+    </parent>
+
+    <groupId>io.lighty.modules.intent</groupId>
+    <artifactId>lighty-intent-aggregator</artifactId>
+    <version>23.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>
+        Intent-driven management (IDM) module for lighty.io. Turns operator intents
+        (drafted from natural language by an external SLM sidecar, or submitted
+        directly as structured data following the 3GPP TS 28.312 model) into network
+        configuration, with validation, conflict detection, dry-run/approval, and
+        fulfilment reporting. See docs/intent-driven-management.md.
+    </description>
+
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>true</maven.install.skip>
+    </properties>
+
+    <modules>
+        <module>lighty-intent-api</module>
+        <module>lighty-intent-core</module>
+        <module>lighty-intent-transport</module>
+        <module>lighty-intent-ran</module>
+        <module>lighty-intent-nl-client</module>
+    </modules>
+</project>

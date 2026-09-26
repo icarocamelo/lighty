@@ -1,0 +1,7 @@
+# Pekko cluster/persistence runtime state written to the module's working directory when
+# IntentLightyModuleTest starts a real LightyController (see LightyControllerBuilder's default
+# single-node configuration). Not build output (so the root .gitignore's target/ rule doesn't
+# cover it) and never meant to be committed.
+/data/
+/state/
+/segmented-journal/

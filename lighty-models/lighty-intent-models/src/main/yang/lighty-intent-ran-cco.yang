@@ -1,0 +1,66 @@
+module lighty-intent-ran-cco {
+    namespace "urn:lighty:intent:ran-cco";
+    prefix "intent-cco";
+
+    import lighty-intent { prefix intent; revision-date "2026-09-26"; }
+
+    organization "icarocamelo/lighty";
+
+    description
+        "RAN Coverage/Capacity Optimization (CCO) domain for lighty.io's intent-driven
+         management module. Realizes O-RAN Alliance SMO Intent-Driven Management for the
+         RAN, on top of the 3GPP TS 28.312 core intent model.
+
+         This module is a P2 skeleton: it defines the expectation-object-type identities
+         and the shape of a compiled A1 policy plan, but RanCcoCompiler, the A1 client and
+         the O1 PM/VES assurance ingest are not wired into lighty-intent-core's deployment
+         path in this revision. See docs/intent-driven-management.md roadmap item P2.
+
+         Copyright (c) 2026 icarocamelo. All Rights Reserved.
+
+         This program and the accompanying materials are made available under the
+         terms of the Eclipse Public License v1.0 which accompanies this distribution,
+         and is available at https://www.eclipse.org/legal/epl-v10.html";
+
+    revision "2026-09-26" {
+        description "Initial revision.";
+    }
+
+    identity ran {
+        base intent:intent-domain;
+        description "RAN coverage/capacity-optimization domain, actuated via A1 policies to
+                     the Near-RT RIC and assured via O1 PM/VES.";
+    }
+
+    identity prb-utilization-max {
+        base intent:expectation-object-type;
+        description "Maximum PRB (Physical Resource Block) utilization for the target cell(s), in percent.";
+    }
+
+    identity cell-coverage-target {
+        base intent:expectation-object-type;
+        description "Minimum RSRP/coverage target for the target cell(s), in dBm.";
+    }
+
+    identity cell-edge-throughput-min {
+        base intent:expectation-object-type;
+        description "Minimum cell-edge user throughput for the target cell(s), in Mbps.";
+    }
+
+    container ran-cco-plan {
+        config false;
+        description "Skeleton of the compiled A1 policy plan for a CCO intent. The concrete
+                     A1-P policy type (e.g. a traffic-steering or QoS-target policy schema)
+                     and its JSON body are produced by RanCcoCompiler once implemented (P2).";
+        leaf-list target-cell {
+            type string;
+        }
+        leaf a1-policy-type-id {
+            type string;
+        }
+        leaf a1-policy-json {
+            type string;
+            description "Opaque A1 policy object JSON; its schema depends on a1-policy-type-id.";
+        }
+    }
+}

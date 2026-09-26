@@ -1,0 +1,10 @@
+{
+  "gnmi_simulator": {
+    "schemaServiceConfig": {
+      "topLevelModels": [
+        { "nameSpace":"urn:lighty:intent","name":"lighty-intent","revision":"2026-09-26"},
+        { "nameSpace":"urn:lighty:intent:transport","name":"lighty-intent-transport","revision":"2026-09-26"}
+      ]
+    }
+  }
+}

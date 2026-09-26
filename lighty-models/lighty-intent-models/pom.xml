@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (c) 2026 icarocamelo. All Rights Reserved.
+  ~
+  ~ This program and the accompanying materials are made available under the
+  ~ terms of the Eclipse Public License v1.0 which accompanies this distribution,
+  ~ and is available at https://www.eclipse.org/legal/epl-v10.html
+  -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.lighty.core</groupId>
+        <artifactId>lighty-binding-parent</artifactId>
+        <version>23.0.0-SNAPSHOT</version>
+        <relativePath>../../lighty-core/lighty-binding-parent/pom.xml</relativePath>
+    </parent>
+
+    <groupId>io.lighty.models.intent</groupId>
+    <artifactId>lighty-intent-models</artifactId>
+    <version>23.0.0-SNAPSHOT</version>
+
+    <name>${project.groupId}:${project.artifactId}</name>
+    <url>https://github.com/icarocamelo/lighty</url>
+
+    <description>
+        YANG models for lighty.io's intent-driven management (IDM) module: a 3GPP TS 28.312-inspired
+        Intent/IntentExpectation/IntentReport core model, plus per-domain expectation vocabularies and
+        compiled-config shapes for the transport (QoS/ACL) and RAN coverage/capacity-optimization domains.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.opendaylight.mdsal.binding.model.ietf</groupId>
+            <artifactId>rfc6991-ietf-yang-types</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

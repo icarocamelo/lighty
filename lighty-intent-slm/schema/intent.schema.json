@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lighty.io/schema/intent.schema.json",
+  "title": "lighty draft intent (RFC 7951 JSON body of draft_intent_json)",
+  "description": "Shape of the JSON that, once parsed from draft_intent_json, must contain exactly one '/intents/intent' entry as produced by the lighty-intent-slm sidecar. Field names mirror lighty-intent.yang / lighty-intent-transport.yang / lighty-intent-ran-cco.yang.",
+  "type": "object",
+  "required": ["lighty-intent:intent"],
+  "additionalProperties": false,
+  "properties": {
+    "lighty-intent:intent": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": { "$ref": "#/definitions/intent" }
+    }
+  },
+  "definitions": {
+    "intent": {
+      "type": "object",
+      "required": [
+        "intent-id",
+        "intent-name",
+        "domain",
+        "source",
+        "original-nl-text",
+        "expectation"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "intent-id": { "type": "string", "minLength": 1 },
+        "intent-name": { "type": "string", "minLength": 1 },
+        "domain": {
+          "type": "string",
+          "enum": [
+            "lighty-intent-transport:transport",
+            "lighty-intent-ran-cco:ran"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "enum": ["NL_SLM"]
+        },
+        "original-nl-text": { "type": "string" },
+        "expectation": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/expectation" }
+        }
+      }
+    },
+    "expectation": {
+      "type": "object",
+      "required": ["expectation-id", "expectation-verb", "expectation-target"],
+      "additionalProperties": false,
+      "properties": {
+        "expectation-id": { "type": "string", "minLength": 1 },
+        "expectation-verb": {
+          "type": "string",
+          "enum": ["DELIVER", "ENSURE", "AVOID", "MAINTAIN", "REPORT"]
+        },
+        "expectation-target": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/expectation-target" }
+        }
+      }
+    },
+    "expectation-target": {
+      "type": "object",
+      "required": [
+        "expectation-object-type",
+        "expectation-object-instance",
+        "target-condition",
+        "target-value-range"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "expectation-object-type": {
+          "type": "string",
+          "enum": [
+            "lighty-intent-transport:min-bandwidth",
+            "lighty-intent-transport:max-latency",
+            "lighty-intent-transport:max-packet-loss",
+            "lighty-intent-transport:traffic-isolation",
+            "lighty-intent-ran-cco:prb-utilization-max",
+            "lighty-intent-ran-cco:cell-coverage-target",
+            "lighty-intent-ran-cco:cell-edge-throughput-min"
+          ]
+        },
+        "expectation-object-instance": { "type": "string", "minLength": 1 },
+        "target-condition": {
+          "type": "string",
+          "enum": [
+            "IS_EQUAL_TO",
+            "IS_UNEQUAL_TO",
+            "IS_GREATER_THAN",
+            "IS_LESS_THAN",
+            "IS_WITHIN_RANGE",
+            "IS_ONE_OF",
+            "IS_ALL_OF"
+          ]
+        },
+        "target-value-range": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "unit": { "type": "string" }
+      }
+    }
+  }
+}

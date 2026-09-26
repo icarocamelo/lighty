@@ -1,0 +1,144 @@
+module lighty-intent-transport {
+    namespace "urn:lighty:intent:transport";
+    prefix "intent-tr";
+
+    import lighty-intent { prefix intent; revision-date "2026-09-26"; }
+
+    organization "icarocamelo/lighty";
+
+    description
+        "Transport (QoS/ACL/isolation) domain for lighty.io's intent-driven management module.
+
+         Adds expectation-object-type identities for the transport domain, and defines
+         'transport-qos-config': the compiled, device-facing configuration the
+         TransportQosCompiler renders and actuates over NETCONF/gNMI.
+
+         'transport-qos-config' is intentionally a lighty-owned subset shaped after
+         OpenConfig's openconfig-qos / openconfig-acl / openconfig-network-instance
+         containers (qos policy classes, ACL entries, network-instance/VRF isolation),
+         rather than a vendored copy of those modules. Vendoring the real OpenConfig
+         QoS/ACL/network-instance tree pulls in a large transitive dependency graph
+         (openconfig-policy-types, openconfig-routing-policy, openconfig-mpls-types,
+         openconfig-if-ip and others) that lighty does not otherwise carry; see
+         docs/intent-driven-management.md, roadmap item P1.5, for the follow-up to
+         replace this subset with the real OpenConfig models once vendored.
+
+         Copyright (c) 2026 icarocamelo. All Rights Reserved.
+
+         This program and the accompanying materials are made available under the
+         terms of the Eclipse Public License v1.0 which accompanies this distribution,
+         and is available at https://www.eclipse.org/legal/epl-v10.html";
+
+    revision "2026-09-26" {
+        description "Initial revision.";
+    }
+
+    identity transport {
+        base intent:intent-domain;
+        description "Transport network domain: QoS, ACL and traffic-isolation intents,
+                     actuated as OpenConfig-shaped config over NETCONF/gNMI.";
+    }
+
+    identity min-bandwidth {
+        base intent:expectation-object-type;
+        description "Minimum guaranteed bandwidth for the matched traffic, in Mbps.";
+    }
+
+    identity max-latency {
+        base intent:expectation-object-type;
+        description "Maximum one-way latency bound for the matched traffic, in ms.";
+    }
+
+    identity max-packet-loss {
+        base intent:expectation-object-type;
+        description "Maximum packet loss for the matched traffic, in percent.";
+    }
+
+    identity traffic-isolation {
+        base intent:expectation-object-type;
+        description "Requirement that the matched traffic be isolated (own network-instance/VRF)
+                     from other traffic on the same interfaces.";
+    }
+
+    grouping qos-policy {
+        leaf qos-class {
+            type string;
+        }
+        leaf min-bandwidth-mbps {
+            type uint32;
+        }
+        leaf max-latency-ms {
+            type uint32;
+        }
+        leaf max-packet-loss-percent {
+            type decimal64 {
+                fraction-digits 2;
+            }
+        }
+        leaf-list applied-interface {
+            type string;
+        }
+    }
+
+    grouping acl-entry {
+        leaf sequence-id {
+            type uint32;
+        }
+        leaf match-source-network {
+            type string;
+            description "Source prefix to match, e.g. '10.0.0.0/24'.";
+        }
+        leaf match-destination-network {
+            type string;
+        }
+        leaf action {
+            type enumeration {
+                enum PERMIT;
+                enum DENY;
+            }
+            default PERMIT;
+        }
+    }
+
+    grouping acl-policy {
+        leaf acl-name {
+            type string;
+        }
+        list acl-entry {
+            key "sequence-id";
+            uses acl-entry;
+        }
+        leaf-list applied-interface {
+            type string;
+        }
+    }
+
+    grouping network-instance {
+        leaf name {
+            type string;
+            description "VRF/network-instance name used to isolate this intent's traffic.";
+        }
+        leaf-list interface {
+            type string;
+        }
+    }
+
+    container transport-qos-config {
+        description "Compiled per-device configuration rendered by the TransportQosCompiler
+                     from one or more transport-domain intents. Actuated by writing this
+                     container's contents (RFC 7951 JSON) to the target device over
+                     NETCONF (lighty-netconf-sb) or gNMI Set (lighty-gnmi-sb).";
+        list qos-policy {
+            key "qos-class";
+            uses qos-policy;
+        }
+        list acl-policy {
+            key "acl-name";
+            uses acl-policy;
+        }
+        list network-instance {
+            key "name";
+            uses network-instance;
+        }
+    }
+}

@@ -1,0 +1,501 @@
+module lighty-intent {
+    namespace "urn:lighty:intent";
+    prefix "intent";
+
+    import ietf-yang-types { prefix yang; revision-date "2013-07-15"; }
+
+    organization "icarocamelo/lighty";
+
+    description
+        "Core intent model for lighty.io's intent-driven management (IDM) module.
+
+         The Intent / IntentExpectation / ExpectationTarget / ExpectationContext /
+         IntentReport shapes here follow the concepts defined by 3GPP TS 28.312
+         'Intent driven management services for mobile networks', kept as a
+         technology-neutral core so that per-domain modules (see
+         lighty-intent-transport, lighty-intent-ran-cco) can extend the
+         'expectation-object-type' and 'intent-domain' identities without
+         changing this module. This keeps the model forward-compatible with
+         3GPP's evolving (6G-era) intent work, which is expected to extend
+         rather than replace the Intent/Expectation/Target/Context shape.
+
+         O-RAN Alliance's SMO Intent-Driven Management framework is treated as
+         the RAN-specific realization of this same lifecycle (see
+         lighty-intent-ran-cco), not a separate model.
+
+         Copyright (c) 2026 icarocamelo. All Rights Reserved.
+
+         This program and the accompanying materials are made available under the
+         terms of the Eclipse Public License v1.0 which accompanies this distribution,
+         and is available at https://www.eclipse.org/legal/epl-v10.html";
+
+    revision "2026-09-26" {
+        description "Initial revision.";
+    }
+
+    /*
+     * Identities: extension points.
+     *
+     * Per-domain modules add identities deriving from these bases instead of
+     * augmenting structure, so new domains (or future 6G expectation objects)
+     * never require a change to this module.
+     */
+
+    identity intent-domain {
+        description "Base identity for a network domain an intent decomposes into.";
+    }
+
+    identity expectation-object-type {
+        description
+            "Base identity for the object/KPI an expectation target refers to
+             (e.g. a bandwidth, latency, PRB-utilization or coverage target).
+             Domain modules derive concrete identities from this base.";
+    }
+
+    /*
+     * Common typedefs.
+     */
+
+    typedef intent-lifecycle-state {
+        type enumeration {
+            enum DRAFT {
+                description "Intent was created (directly or via NL translation) but not yet validated.";
+            }
+            enum VALIDATED {
+                description "Intent passed schema/semantic validation and conflict detection.";
+            }
+            enum AWAITING_APPROVAL {
+                description "A dry-run plan exists and is waiting for human approval.";
+            }
+            enum DEPLOYING {
+                description "The compiled plan is being actuated on the network.";
+            }
+            enum ACTIVE {
+                description "The intent is deployed and, where assurance is available, currently fulfilled.";
+            }
+            enum DEGRADED {
+                description "The intent is deployed but assurance reports partial fulfilment.";
+            }
+            enum FAILED {
+                description "Validation, conflict detection, or deployment failed.";
+            }
+            enum SUSPENDED {
+                description "The intent was deployed and is temporarily withdrawn by an operator.";
+            }
+            enum DELETED {
+                description "The intent was withdrawn and its actuated configuration removed.";
+            }
+        }
+        description "Lifecycle state of an intent, as tracked by lighty-intent-core.";
+    }
+
+    typedef fulfilment-status {
+        type enumeration {
+            enum FULFILLED {
+                description "All expectation targets are met.";
+            }
+            enum DEGRADED {
+                description "Some, but not all, expectation targets are met.";
+            }
+            enum NOT_FULFILLED {
+                description "No expectation targets are met.";
+            }
+            enum UNKNOWN {
+                description "No assurance data is available yet for this intent.";
+            }
+        }
+        description "3GPP TS 28.312-style fulfilment status of an intent or of one of its targets.";
+    }
+
+    typedef expectation-verb {
+        type enumeration {
+            enum DELIVER {
+                description "The target network behaviour must be actively provided.";
+            }
+            enum ENSURE {
+                description "The target condition must be guaranteed to hold.";
+            }
+            enum AVOID {
+                description "The target condition must be prevented from occurring.";
+            }
+            enum MAINTAIN {
+                description "An existing target condition must be preserved.";
+            }
+            enum REPORT {
+                description "Only observation/reporting of the target is required, no actuation.";
+            }
+        }
+        description "3GPP TS 28.312 expectationVerb (reduced to the verbs this module acts on).";
+    }
+
+    typedef comparison-condition {
+        type enumeration {
+            enum IS_EQUAL_TO;
+            enum IS_UNEQUAL_TO;
+            enum IS_GREATER_THAN;
+            enum IS_LESS_THAN;
+            enum IS_WITHIN_RANGE;
+            enum IS_ONE_OF;
+            enum IS_ALL_OF;
+        }
+        description "3GPP TS 28.312 style targetCondition / contextCondition comparator.";
+    }
+
+    /*
+     * Groupings.
+     */
+
+    grouping context-parameter {
+        description "One contextParameter of an expectation's expectationContext (TS 28.312).";
+        leaf context-attribute {
+            type string;
+            mandatory true;
+            description "Name of the context attribute, e.g. 'cell-list', 'time-window', 'site'.";
+        }
+        leaf context-condition {
+            type comparison-condition;
+            default IS_EQUAL_TO;
+        }
+        leaf-list context-value-range {
+            type string;
+            description "Values the context attribute is compared against.";
+        }
+    }
+
+    grouping expectation-target {
+        description "One expectationTarget of an expectation (TS 28.312).";
+        leaf expectation-object-type {
+            type identityref {
+                base expectation-object-type;
+            }
+            mandatory true;
+            description "Which KPI/object this target refers to. Extended by domain modules.";
+        }
+        leaf expectation-object-instance {
+            type string;
+            description "Identifier of the concrete network object the target applies to,
+                         e.g. a cell id, link id, or slice id.";
+        }
+        leaf target-condition {
+            type comparison-condition;
+            default IS_EQUAL_TO;
+        }
+        leaf-list target-value-range {
+            type string;
+            description "Target value(s), kept as strings so units/ranges stay domain-defined.";
+        }
+        leaf unit {
+            type string;
+            description "Unit of the target value(s), e.g. 'Mbps', 'ms', '%'.";
+        }
+    }
+
+    grouping expectation {
+        description "One IntentExpectation of an intent (TS 28.312).";
+        leaf expectation-id {
+            type string;
+        }
+        leaf expectation-verb {
+            type expectation-verb;
+            default ENSURE;
+        }
+        leaf expectation-priority {
+            type uint8 {
+                range "1..10";
+            }
+            default 5;
+            description "1 = highest priority. Used by the conflict detector to break ties.";
+        }
+        list expectation-target {
+            key "expectation-object-type expectation-object-instance";
+            uses expectation-target;
+        }
+        list expectation-context {
+            key "context-attribute";
+            uses context-parameter;
+        }
+    }
+
+    /*
+     * Top-level intent store.
+     */
+
+    container intents {
+        description "Intent store. Clients write the intent (minus server-managed lifecycle/plan
+                     fields) to the CONFIG datastore; lighty-intent-core mirrors the full entry,
+                     including lifecycle-state and active-plan, to the OPERATIONAL datastore.";
+        list intent {
+            key "intent-id";
+
+            leaf intent-id {
+                type string;
+            }
+            leaf intent-name {
+                type string;
+            }
+            leaf domain {
+                type identityref {
+                    base intent-domain;
+                }
+                description "Which domain compiler/actuator this intent decomposes into.
+                             Extended by domain modules (e.g. lighty-intent-transport:transport).
+                             Not marked mandatory at the schema level: lighty-intent-core writes
+                             lifecycle-state/timestamps/active-plan to the OPERATIONAL datastore
+                             as a merge covering only those (config-false) leaves, and YANG
+                             mandatory constraints are enforced per-datastore, independently, so
+                             a mandatory config-true sibling here would make every such merge
+                             fail. IntentValidator enforces 'domain must be set' at the
+                             application level instead (see its 'Intent has no domain.' check).";
+            }
+            leaf source {
+                type enumeration {
+                    enum NL_SLM {
+                        description "Intent was drafted by the NL-to-intent SLM sidecar.";
+                    }
+                    enum API {
+                        description "Intent was submitted directly as structured JSON/XML.";
+                    }
+                }
+                default API;
+            }
+            leaf original-nl-text {
+                type string;
+                description "Verbatim operator input, present only when source is NL_SLM.";
+            }
+            list expectation {
+                key "expectation-id";
+                uses expectation;
+            }
+
+            leaf lifecycle-state {
+                type intent-lifecycle-state;
+                config false;
+                default DRAFT;
+            }
+            leaf lifecycle-detail {
+                type string;
+                config false;
+                description "Human-readable reason for the current lifecycle-state
+                             (e.g. a validation error or conflict description).";
+            }
+            leaf created-timestamp {
+                type yang:date-and-time;
+                config false;
+            }
+            leaf last-updated-timestamp {
+                type yang:date-and-time;
+                config false;
+            }
+            leaf approved-by {
+                type string;
+                config false;
+            }
+            container active-plan {
+                config false;
+                description "Snapshot of the last plan produced for this intent by 'dry-run',
+                             carried through to deployment.";
+                leaf domain-compiler {
+                    type string;
+                }
+                leaf rendered-config-json {
+                    type string;
+                    description "RFC 7951 JSON of the domain-specific compiled configuration
+                                 (e.g. lighty-intent-transport:transport-qos-config entries).";
+                }
+                leaf-list conflicts {
+                    type string;
+                }
+                leaf feasible {
+                    type boolean;
+                }
+                leaf plan-timestamp {
+                    type yang:date-and-time;
+                }
+            }
+        }
+    }
+
+    container intent-reports {
+        config false;
+        description "Fulfilment assurance reports (TS 28.312 IntentReport), one per intent
+                     per observation window. lighty-intent-core appends to this list as
+                     assurance data is evaluated; no automatic remediation happens on top
+                     of it in this version.";
+        list intent-report {
+            key "intent-id report-timestamp";
+            leaf intent-id {
+                type leafref {
+                    path "/intents/intent/intent-id";
+                }
+            }
+            leaf report-timestamp {
+                type yang:date-and-time;
+            }
+            leaf fulfilment-status {
+                type fulfilment-status;
+            }
+            list target-fulfilment {
+                key "expectation-object-type expectation-object-instance";
+                leaf expectation-object-type {
+                    type string;
+                }
+                leaf expectation-object-instance {
+                    type string;
+                }
+                leaf observed-value {
+                    type string;
+                }
+                leaf fulfilment-status {
+                    type fulfilment-status;
+                }
+            }
+        }
+    }
+
+    /*
+     * RPCs.
+     */
+
+    rpc translate-nl {
+        description "Translate a natural-language operator request into a draft intent using
+                     the SLM sidecar (see lighty-intent-nl-client). Never applies anything to
+                     the network by itself.";
+        input {
+            leaf nl-text {
+                type string;
+                mandatory true;
+            }
+            leaf context-hint {
+                type string;
+                description "Optional freeform hint (e.g. a domain or site name) to help the SLM
+                             disambiguate the request.";
+            }
+        }
+        output {
+            leaf status {
+                type enumeration {
+                    enum INTENT_DRAFTED;
+                    enum CLARIFICATION_NEEDED;
+                    enum ERROR;
+                }
+                mandatory true;
+            }
+            leaf draft-intent-json {
+                type string;
+                description "RFC 7951 JSON of the drafted '/intents/intent' entry.
+                             Present only when status is INTENT_DRAFTED. The caller reviews
+                             and POSTs this (or an edited version of it) to /intents/intent
+                             to actually create the intent.";
+            }
+            leaf-list clarification-question {
+                type string;
+                description "Present only when status is CLARIFICATION_NEEDED.";
+            }
+            leaf confidence {
+                type decimal64 {
+                    fraction-digits 2;
+                }
+            }
+        }
+    }
+
+    rpc dry-run {
+        description "Validate, conflict-check and compile an intent without deploying it.
+                     Safe to call repeatedly; has no side effect on the network.";
+        input {
+            leaf intent-id {
+                type leafref {
+                    path "/intents/intent/intent-id";
+                }
+                mandatory true;
+            }
+        }
+        output {
+            leaf feasible {
+                type boolean;
+            }
+            leaf domain-compiler {
+                type string;
+            }
+            leaf rendered-config-json {
+                type string;
+            }
+            leaf-list conflict {
+                type string;
+                description "Human-readable description of each conflict found against
+                             other ACTIVE/AWAITING_APPROVAL/DEPLOYING intents.";
+            }
+        }
+    }
+
+    rpc approve-intent {
+        description "Move an intent from AWAITING_APPROVAL to DEPLOYING and trigger actuation
+                     of its last dry-run plan.";
+        input {
+            leaf intent-id {
+                type leafref {
+                    path "/intents/intent/intent-id";
+                }
+                mandatory true;
+            }
+            leaf approved-by {
+                type string;
+                mandatory true;
+            }
+        }
+        output {
+            leaf lifecycle-state {
+                type intent-lifecycle-state;
+            }
+        }
+    }
+
+    rpc reject-intent {
+        description "Reject a drafted or awaiting-approval intent. It moves to FAILED and is
+                     never actuated.";
+        input {
+            leaf intent-id {
+                type leafref {
+                    path "/intents/intent/intent-id";
+                }
+                mandatory true;
+            }
+            leaf reason {
+                type string;
+            }
+        }
+        output {
+            leaf lifecycle-state {
+                type intent-lifecycle-state;
+            }
+        }
+    }
+
+    /*
+     * Notifications.
+     */
+
+    notification intent-lifecycle-changed {
+        leaf intent-id {
+            type string;
+        }
+        leaf lifecycle-state {
+            type intent-lifecycle-state;
+        }
+        leaf lifecycle-detail {
+            type string;
+        }
+    }
+
+    notification intent-report-published {
+        leaf intent-id {
+            type string;
+        }
+        leaf fulfilment-status {
+            type fulfilment-status;
+        }
+        leaf report-timestamp {
+            type yang:date-and-time;
+        }
+    }
+}

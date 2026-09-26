@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (c) 2026 icarocamelo. All Rights Reserved.
+  ~
+  ~ This program and the accompanying materials are made available under the
+  ~ terms of the Eclipse Public License v1.0 which accompanies this distribution,
+  ~ and is available at https://www.eclipse.org/legal/epl-v10.html
+  -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.lighty.core</groupId>
+        <artifactId>lighty-parent</artifactId>
+        <version>23.0.0-SNAPSHOT</version>
+        <relativePath>../../../lighty-core/lighty-parent/pom.xml</relativePath>
+    </parent>
+
+    <groupId>io.lighty.modules.intent</groupId>
+    <artifactId>lighty-intent-transport</artifactId>
+    <version>23.0.0-SNAPSHOT</version>
+
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>
+        Transport-domain intent compiler and gNMI actuator for lighty.io's intent-driven
+        management (IDM) module. Implements io.lighty.modules.intent.api's IntentCompiler
+        and DomainActuator SPIs for the "lighty-intent-transport:transport" domain
+        (QoS/ACL/traffic-isolation), rendering and actuating the transport-qos-config
+        YANG container over gNMI.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.lighty.modules.intent</groupId>
+            <artifactId>lighty-intent-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.lighty.models.intent</groupId>
+            <artifactId>lighty-intent-models</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.lighty.modules.gnmi</groupId>
+            <artifactId>lighty-gnmi-connector</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.13.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lighty.modules.gnmi</groupId>
+            <artifactId>lighty-gnmi-device-simulator</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lighty.modules</groupId>
+            <artifactId>lighty-aaa</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.skyscreamer</groupId>
+            <artifactId>jsonassert</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- GnmiTransportActuatorIT is a plain JUnit 5 test (starts an in-process gNMI
+                 simulator, like lighty-gnmi-test's SimulatorCrudTest); run it together with
+                 the unit tests during the normal test phase instead of relying on the
+                 failsafe/TestNG "*TestIT.java" convention used elsewhere in this repo. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>**/*Test.java</include>
+                        <include>**/*IT.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

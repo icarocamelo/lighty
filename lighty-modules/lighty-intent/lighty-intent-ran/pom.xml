@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (c) 2026 icarocamelo. All Rights Reserved.
+  ~
+  ~ This program and the accompanying materials are made available under the
+  ~ terms of the Eclipse Public License v1.0 which accompanies this distribution,
+  ~ and is available at https://www.eclipse.org/legal/epl-v10.html
+  -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.lighty.core</groupId>
+        <artifactId>lighty-parent</artifactId>
+        <version>23.0.0-SNAPSHOT</version>
+        <relativePath>../../../lighty-core/lighty-parent/pom.xml</relativePath>
+    </parent>
+
+    <groupId>io.lighty.modules.intent</groupId>
+    <artifactId>lighty-intent-ran</artifactId>
+    <version>23.0.0-SNAPSHOT</version>
+
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>
+        RAN Coverage/Capacity-Optimization (CCO) intent domain for lighty.io's
+        intent-driven management module. P2/P3 skeleton: RanCcoCompiler compiles
+        prb-utilization-max / cell-coverage-target / cell-edge-throughput-min
+        expectations into a ran-cco-plan (an illustrative A1 policy shape),
+        HttpA1PolicyClient talks A1-P PUT/DELETE to a Near-RT RIC, and
+        RanAssuranceSource observes an in-memory PM feed fed by a minimal,
+        illustrative VES-like JSON ingest. None of this is wired into
+        lighty-intent-core's actuation path yet; see README.md.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.lighty.modules.intent</groupId>
+            <artifactId>lighty-intent-api</artifactId>
+            <version>23.0.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>io.lighty.models.intent</groupId>
+            <artifactId>lighty-intent-models</artifactId>
+            <version>23.0.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+                lighty-parent's own dependencies put TestNG on every module's test classpath,
+                which makes maven-surefire-plugin auto-detect the TestNG provider and silently
+                run zero tests (as an empty TestNG suite) instead of this module's JUnit 4
+                tests. Pinning the JUnit 4 provider here makes surefire actually run them.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.apache.maven.surefire</groupId>
+                        <artifactId>surefire-junit4</artifactId>
+                        <version>3.5.3</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

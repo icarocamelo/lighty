@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (c) 2026 icarocamelo. All Rights Reserved.
+  ~
+  ~ This program and the accompanying materials are made available under the
+  ~ terms of the Eclipse Public License v1.0 which accompanies this distribution,
+  ~ and is available at https://www.eclipse.org/legal/epl-v10.html
+  -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.lighty.core</groupId>
+        <artifactId>lighty-parent</artifactId>
+        <version>23.0.0-SNAPSHOT</version>
+        <relativePath>../../../lighty-core/lighty-parent/pom.xml</relativePath>
+    </parent>
+
+    <groupId>io.lighty.modules.intent</groupId>
+    <artifactId>lighty-intent-nl-client</artifactId>
+    <version>23.0.0-SNAPSHOT</version>
+
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>
+        Implementations of lighty-intent-api's NlTranslator SPI, backing the intent module's
+        translate-nl RPC: an HTTP client for an external Python NL-to-intent "SLM sidecar"
+        (SidecarNlTranslator), a deterministic offline rule-based fallback (RuleBasedNlTranslator)
+        covering the transport QoS/isolation and RAN coverage/capacity MVP use cases, and a
+        composite (FallbackNlTranslator) that tries the sidecar first and falls back to the
+        rule-based translator on error.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.lighty.modules.intent</groupId>
+            <artifactId>lighty-intent-api</artifactId>
+            <version>23.0.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>io.lighty.models.intent</groupId>
+            <artifactId>lighty-intent-models</artifactId>
+            <version>23.0.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- lighty-parent unconditionally adds org.testng:testng as a dependency to every
+                 module, which makes maven-surefire-plugin auto-detect the TestNG provider and
+                 silently skip this module's JUnit 4 tests. Pin the JUnit 4 provider explicitly
+                 so `mvn test` actually runs RuleBasedNlTranslatorTest, SidecarNlTranslatorTest
+                 and FallbackNlTranslatorTest. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.apache.maven.surefire</groupId>
+                        <artifactId>surefire-junit4</artifactId>
+                        <version>3.5.3</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

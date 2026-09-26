@@ -23,5 +23,6 @@
         <module>test</module>
         <module>lighty-gnmi-models</module>
         <module>openconfig-models</module>
+        <module>lighty-intent-models</module>
     </modules>
 </project>
