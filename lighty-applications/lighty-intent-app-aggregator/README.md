@@ -6,6 +6,45 @@ intent, dry-run it, approve it, and it gets compiled and actuated onto a real de
 architecture, lifecycle, and standards mapping; this README only covers running *this*
 application.
 
+## What problems does this solve?
+
+- **Operators shouldn't have to hand-write device config to express an outcome.** "Guarantee
+  100Mbps on this link" or "keep this cell's PRB utilization under 70%" are the actual asks;
+  OpenConfig QoS policies and A1 policy JSON are implementation detail. `translate-nl` lets an
+  operator submit plain language (or a standards-shaped intent directly) and have it compiled to
+  the right device-specific config — this fits here because lighty.io already owns the YANG/schema
+  knowledge of what each southbound target accepts; Kubernetes has no notion of an OpenConfig QoS
+  schema or an A1 policy type to translate into, so there's no shortcut to this logic on that side.
+- **Multiple actuation domains need protocol-aware mediation, not just a declarative diff.** A
+  transport intent becomes OpenConfig pushed over gNMI (`GnmiTransportActuator`); a RAN CCO intent
+  becomes an A1 policy PUT over A1-P REST (`RanCcoActuator`). This module reuses lighty's existing
+  gNMI southbound stack and adds a purpose-built A1 REST client sitting right next to it. A
+  Kubernetes controller doing the same job would still need a gNMI client and an A1 client — i.e.
+  it would have to re-embed this exact mediation code, just in a different runtime, not replace it
+  with something Kubernetes-native.
+- **Automated network changes need a safety gate before anything is pushed.** `dry-run`, explicit
+  human `approve-intent`, and conflict detection against already-active intents all have to happen
+  *before* a device sees any config. MD-SAL's transactional CONFIG/OPERATIONAL datastore gives a
+  natural home for "compute a plan, show it, commit only on approval" — `IntentLightyModule`'s
+  lifecycle state machine (`DRAFT` → `VALIDATED` → `AWAITING_APPROVAL` → `DEPLOYING` →
+  `ACTIVE`/`FAILED`) is built directly on it. Kubernetes' reconcile loops are eventually-consistent
+  and have no built-in notion of "hold a candidate plan pending human sign-off"; that machinery
+  would have to be built from scratch on top of a CRD/controller instead of reused.
+- **A private API doesn't interoperate with the rest of an operator's OSS/SMO stack.** The
+  3GPP TS 28.312-shaped `lighty-intent.yang` model exposed over RESTCONF speaks the same NBI
+  technology every other lighty.io application in this repository already exposes, with a 3GPP
+  28.312 OpenAPI facade as a natural next step (roadmap P3 in the design doc). A Kubernetes CRD is
+  a schema only `kubectl`/controller-runtime understands — an SMO/OSS system would need a
+  translation layer in front of it, which is, again, this module.
+- **Fulfilment needs to be reported back, not just "config was applied."** `IntentReport`/
+  `intent-report-published` and `fulfilment-status` (`FULFILLED`/`DEGRADED`/...) close the loop via
+  each domain's `AssuranceSource`. That assurance state belongs in the same datastore that already
+  holds the intent and its target definition, not as a separate observability pipeline bolted onto
+  a CRD's status subresource.
+
+See "[Why lighty.io, not a Kubernetes operator?](#why-lightyio-not-a-kubernetes-operator)" below
+for the broader architectural case.
+
 Components wired together by `IntentAppModule`
 ([lighty-intent-module](lighty-intent-module)):
 
