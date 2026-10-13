@@ -1,0 +1,71 @@
+# Default values for lighty-intent-app-helm.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image:
+  name: lighty-intent
+  version: latest
+  pullPolicy: IfNotPresent
+
+slmImage:
+  name: lighty-intent-slm
+  version: latest
+  pullPolicy: IfNotPresent
+
+lighty:
+  # Must be same as defined in Docker image
+  workdir: "/lighty-intent"
+  configDirectoryName: "k8s-config"
+  # Name of the config file must be same as property in configmap
+  configFilename: "configuration.json"
+  # Name of the config file for initial logger configuration, must be same as property in configmap
+  loggerConfigFilename: "log4j2.xml"
+  # Time-out in seconds after which the exception is thrown if a module is not successfully
+  # initialized by then
+  moduleTimeOut: 60
+  # IntentAppModule only ever builds a single-node controller (no pekko clustering support), so
+  # there is no replicaCount/cluster-discovery knob here, unlike lighty-rnc-app-helm.
+  restconf:
+    restconfPort: 8888
+    restconfPath: "rests"
+  gnmiTarget:
+    host: "transport-device"
+    port: 10161
+    usePlainText: true
+    username: ""
+    password: ""
+  a1Target:
+    # Near-RT RIC base URL RanCcoActuator sends A1-P policy PUT/DELETE requests to.
+    baseUrl: "http://near-rt-ric:9990"
+  nlSlm:
+    # The SLM sidecar runs in the same pod as the app, so it is reachable at localhost.
+    baseUrl: "http://localhost:8000"
+
+nodePort:
+  # If switched to "true", NodePort service will be created; If switched to "false", ClusterIp service will be created
+  useNodePort: true
+  restconfNodePort: 30888
+
+ingress:
+  useIngress: true
+  restconfHost: "intent.lighty.io"
+
+deploymentSecurity:
+  # User with UID 1000 is set in the lighty-intent docker image.
+  runAsUser: 1000
+
+resources:
+  limits:
+    memory: 2Gi
+    cpu: 1
+  requests:
+    memory: 512Mi
+    cpu: 0.5
+
+slmResources:
+  limits:
+    memory: 1Gi
+    cpu: 1
+  requests:
+    memory: 256Mi
+    cpu: 0.25

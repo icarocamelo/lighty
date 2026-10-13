@@ -1,0 +1,88 @@
+apiVersion: v1
+
+metadata:
+  name: {{ include "lighty-intent-app-helm.fullname" . }}
+kind: ConfigMap
+data:
+  configuration.json: |
+    {
+      "modules": {
+        "moduleTimeoutSeconds": {{ .Values.lighty.moduleTimeOut }}
+      },
+      "controller":{
+        "restoreDirectoryPath":"./clustered-datastore-restore",
+        "maxDataBrokerFutureCallbackQueueSize":1000,
+        "maxDataBrokerFutureCallbackPoolSize":10,
+        "metricCaptureEnabled":false,
+        "mailboxCapacity":1000,
+        "moduleShardsConfig": "configuration/initial/module-shards.conf",
+        "modulesConfig": "configuration/initial/modules.conf",
+        "domNotificationRouterConfig":{
+            "queueDepth":65536,
+            "spinTime":0,
+            "parkTime":0,
+            "unit":"MILLISECONDS"
+        },
+        "actorSystemConfig":{
+            "pekkoConfigPath":"singlenode/pekko-default.conf",
+            "factoryPekkoConfigPath":"singlenode/factory-pekko.conf"
+        },
+        "schemaServiceConfig":{
+            "topLevelModels":[
+                { "usedBy": "CONTROLLER", "name": "odl-general-entity", "revision": "2015-09-30", "nameSpace": "urn:opendaylight:params:xml:ns:yang:mdsal:core:general-entity"},
+                { "usedBy": "CONTROLLER", "name": "opendaylight-l2-types", "revision": "2013-08-27", "nameSpace": "urn:opendaylight:l2:types"},
+                { "usedBy": "CONTROLLER", "name": "distributed-datastore-provider", "revision": "2025-01-30", "nameSpace": "urn:opendaylight:params:xml:ns:yang:controller:config:distributed-datastore-provider"},
+                { "usedBy": "CONTROLLER", "name": "ietf-yang-types", "revision": "2013-07-15", "nameSpace": "urn:ietf:params:xml:ns:yang:ietf-yang-types"},
+                { "usedBy": "CONTROLLER", "name": "iana-if-type", "revision": "2023-01-26", "nameSpace": "urn:ietf:params:xml:ns:yang:iana-if-type"},
+                { "usedBy": "CONTROLLER", "name": "odl-entity-owners", "nameSpace": "urn:opendaylight:params:xml:ns:yang:controller:entity-owners"},
+                { "usedBy": "CONTROLLER", "name":"ietf-interfaces", "revision":"2018-02-20", "nameSpace":"urn:ietf:params:xml:ns:yang:ietf-interfaces"},
+                { "usedBy": "CONTROLLER", "name": "cluster-admin", "revision": "2025-01-31", "nameSpace": "urn:opendaylight:params:xml:ns:yang:controller:md:sal:cluster:admin"},
+                { "usedBy": "RESTCONF", "name": "ietf-restconf-monitoring", "revision": "2017-01-26", "nameSpace": "urn:ietf:params:xml:ns:yang:ietf-restconf-monitoring"},
+                { "usedBy": "RESTCONF", "name": "ietf-restconf", "revision": "2017-01-26", "nameSpace": "urn:ietf:params:xml:ns:yang:ietf-restconf"},
+                { "usedBy": "RESTCONF", "name": "sal-remote-augment", "revision": "2023-11-03", "nameSpace": "urn:sal:restconf:event:subscription"},
+                { "usedBy": "RESTCONF/NETCONF", "name": "ietf-yang-library", "revision": "2019-01-04", "nameSpace": "urn:ietf:params:xml:ns:yang:ietf-yang-library"}
+            ]
+        }
+      },
+      "restconf":{
+        "inetAddress":"0.0.0.0",
+        "httpPort":{{ .Values.lighty.restconf.restconfPort }},
+        "restconfServletContextPath":"{{ .Values.lighty.restconf.restconfPath }}"
+      },
+      "lighty-server": {
+        "useHttps": false,
+        "useHttp2": false,
+        "needClientAuth": false,
+        "enableOpenApi": false
+      },
+      "gnmi-target": {
+        "host": "{{ .Values.lighty.gnmiTarget.host }}",
+        "port": {{ .Values.lighty.gnmiTarget.port }},
+        "usePlainText": {{ .Values.lighty.gnmiTarget.usePlainText }}
+        {{- if .Values.lighty.gnmiTarget.username }},
+        "username": "{{ .Values.lighty.gnmiTarget.username }}",
+        "password": "{{ .Values.lighty.gnmiTarget.password }}"
+        {{- end }}
+      },
+      "a1-target": {
+        "baseUrl": "{{ .Values.lighty.a1Target.baseUrl }}"
+      },
+      "nl-slm": {
+        "baseUrl": "{{ .Values.lighty.nlSlm.baseUrl }}"
+      }
+    }
+
+  log4j2.xml: |
+    <Configuration status="INFO">
+        <Appenders>
+            <Console name="ConsoleAppender" target="SYSTEM_OUT">
+                <PatternLayout pattern="%5p %d{HH:mm:ss} [%c] (%F:%L) - %m%n" />
+            </Console>
+        </Appenders>
+
+        <Loggers>
+            <Root level="INFO">
+                <AppenderRef ref="ConsoleAppender"/>
+            </Root>
+        </Loggers>
+    </Configuration>

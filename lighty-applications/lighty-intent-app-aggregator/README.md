@@ -19,18 +19,21 @@ Components wired together by `IntentAppModule`
   `TransportQosCompiler` + `GnmiTransportActuator`, wired for the
   `lighty-intent-transport:transport` domain, actuating over gNMI against **one** configured
   target device.
-- [lighty-intent-ran](../../lighty-modules/lighty-intent/lighty-intent-ran)'s `RanCcoCompiler`,
-  wired for the `lighty-intent-ran-cco:ran` domain — compiles, so `dry-run` works, but **no
-  actuator is registered** for it in this version, so `approve-intent` on a RAN CCO intent fails
-  cleanly (documented, intentional P2 scope; see that module's own README).
+- [lighty-intent-ran](../../lighty-modules/lighty-intent/lighty-intent-ran)'s `RanCcoCompiler` +
+  `RanCcoActuator`, wired for the `lighty-intent-ran-cco:ran` domain — `approve-intent` on a RAN
+  CCO intent creates/deletes a real A1 policy on the configured Near-RT RIC via
+  `HttpA1PolicyClient` (O1 PM/VES-based assurance is still deferred follow-up work; see that
+  module's own README).
 - [lighty-intent-nl-client](../../lighty-modules/lighty-intent/lighty-intent-nl-client)'s
   `FallbackNlTranslator`, chaining a `SidecarNlTranslator` (talking to the
   [lighty-intent-slm](../../lighty-intent-slm) sidecar) in front of a `RuleBasedNlTranslator`
   offline fallback.
 
 Reduced scope versus [lighty-rnc-app](../lighty-rnc-app-aggregator): no AAA, no OpenApi, no
-NETCONF southbound/call-home. No Helm chart is included in this version either — Docker/
-docker-compose is the supported deployment path for now.
+NETCONF southbound/call-home, no pekko clustering (`IntentAppModule` only ever builds a
+single-node controller, so the [Helm chart](lighty-intent-app-helm) is correspondingly leaner
+than [lighty-rnc-app-helm](../lighty-rnc-app-aggregator/lighty-rnc-app-helm): no cluster-discovery
+RBAC, no AAA/JMX, no HTTPS keystore Secret).
 
 ## Configuration
 
@@ -49,6 +52,9 @@ application-specific top-level sections:
     "username": null,
     "password": null
   },
+  "a1-target": {
+    "baseUrl": "http://127.0.0.1:9990"
+  },
   "nl-slm": {
     "baseUrl": "http://localhost:8000"
   }
@@ -59,6 +65,10 @@ application-specific top-level sections:
   against. The gRPC channel connects lazily on the first `approve-intent` for a transport-domain
   intent, not at startup, so a temporarily-unreachable target does not stop the application from
   starting.
+- `a1-target.baseUrl`: base URL of the Near-RT RIC `RanCcoActuator` actuates RAN CCO intents
+  against, via `HttpA1PolicyClient`'s A1-P REST calls
+  (`PUT`/`DELETE {baseUrl}/A1-P/v2/policytypes/{policyTypeId}/policies/{intentId}`). Like
+  `gnmi-target`, this is only contacted on `approve-intent`/`reject-intent`, not at startup.
 - `nl-slm.baseUrl`: base URL of the `lighty-intent-slm` sidecar backing `translate-nl`. If it is
   unreachable, `translate-nl` transparently falls back to the offline rule-based translator (see
   `lighty-intent-nl-client`'s README) — it does not fail the RPC.
@@ -144,6 +154,62 @@ Every RPC's response wraps its output under the module-qualified key `lighty-int
 (e.g. `{"lighty-intent:output": {"lifecycle-state": "ACTIVE"}}`), not a bare `output` key — see
 [docs/intent-driven-management.md](../../docs/intent-driven-management.md) section 8 for more
 worked examples, including `translate-nl`.
+
+The RAN CCO domain's `approve-intent` path works the same way, but deploys an A1 policy to the
+configured `a1-target` instead of writing gNMI config:
+
+```bash
+curl -X POST http://localhost:8888/rests/data/lighty-intent:intents \
+  -H "Content-Type: application/yang-data+json" -d '{
+  "lighty-intent:intent": [{
+    "intent-id": "intent-ran-1", "intent-name": "Improve cell-edge throughput",
+    "domain": "lighty-intent-ran-cco:ran", "source": "API",
+    "expectation": [{
+      "expectation-id": "exp-1",
+      "expectation-target": [{
+        "expectation-object-type": "lighty-intent-ran-cco:prb-utilization-max",
+        "expectation-object-instance": "cell-42",
+        "target-condition": "IS_LESS_THAN", "target-value-range": ["70"], "unit": "%"
+      }]
+    }]
+  }]
+}'
+
+curl -X POST http://localhost:8888/rests/operations/lighty-intent:approve-intent \
+  -H "Content-Type: application/yang-data+json" \
+  -d '{"input": {"intent-id": "intent-ran-1", "approved-by": "netops-alice"}}'
+```
+
+## Deployment via Helm chart
+
+### Prerequisites
+
+* Kubernetes cluster 1.22+ (minikube / microk8s / ...)
+* helm 3.x
+
+### Deploy
+
+The chart at [lighty-intent-app-helm/helm/lighty-intent-app-helm](lighty-intent-app-helm/helm/lighty-intent-app-helm)
+runs the app and the `lighty-intent-slm` sidecar as two containers in **one pod** (the sidecar is
+reachable by the app at `http://localhost:8000`, not a Kubernetes Service). Make sure the
+`lighty-intent` and `lighty-intent-slm` images named in `values.yaml` (`image.*`/`slmImage.*`) are
+built and accessible to the cluster, then from the chart's `helm/` directory:
+
+```bash
+helm lint lighty-intent-app-helm/
+helm template test lighty-intent-app-helm/        # render and inspect the manifests first
+helm install lighty-intent lighty-intent-app-helm/
+```
+
+Override `lighty.gnmiTarget.*` and `lighty.a1Target.baseUrl` (and `ingress`/`nodePort`) via a
+values file or `--set`, the same way `example-config/configuration.json` is adapted for Docker.
+
+**Validation status:** this chart has been validated with `helm lint` and `helm template`
+(default values and an overrides file) against a locally built `helm` binary in this project's
+development sandbox — rendered manifests were reviewed by hand and the embedded
+`configuration.json` ConfigMap entry was checked for valid JSON. It has **not** been verified with
+a live `helm install` against a running cluster; no cluster or container registry was available to
+do so at the time this chart was added.
 
 ## Setup logging
 

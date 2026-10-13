@@ -51,8 +51,10 @@ existing standards as one lifecycle:
   concepts (coverage/capacity intents actuated as A1 policies to the Near-RT
   RIC, assured via O1 PM) are exactly what `lighty-intent-ran-cco.yang`'s
   `ran` domain, its expectation-object-type identities, and its
-  `ran-cco-plan` container are shaped to carry, once `RanCcoCompiler` is
-  implemented (see roadmap, P2).
+  `ran-cco-plan` container are shaped to carry: `RanCcoCompiler` compiles an
+  intent into that plan, and `RanCcoActuator` turns it into a real A1 policy
+  on the configured Near-RT RIC. O1 PM/VES-based assurance is still deferred
+  follow-up work (see roadmap, P2).
 
 **Forward-compatibility note.** TS 28.312 and O-RAN's IDM framework are
 treated here as today's baseline, not a final shape: 3GPP's intent-management
@@ -311,11 +313,13 @@ RAN Coverage/Capacity Optimization domain — the O-RAN SMO IDM realization
   A1 policy plan: `target-cell` (leaf-list), `a1-policy-type-id`, and an
   opaque `a1-policy-json` whose schema depends on `a1-policy-type-id`.
 
-As the module's own description states, this is a P2 skeleton: it defines
-the expectation-object-type identities and the shape of a compiled A1 policy
-plan, but `RanCcoCompiler`, the A1 client, and O1 PM/VES assurance ingest are
-**not wired into lighty-intent-core's deployment path in this revision** (see
-roadmap P2, §11).
+`RanCcoCompiler` compiles an intent into this plan, and `RanCcoActuator`
+(backed by an `A1PolicyClient`/`HttpA1PolicyClient`) creates/deletes the
+resulting A1 policy on the configured Near-RT RIC, so `approve-intent` on a
+RAN CCO intent is wired into lighty-intent-core's deployment path like any
+other domain. A real A1 policy-type schema (in place of the placeholder
+`a1-policy-type-id` below) and O1 PM/VES assurance ingest are still deferred
+follow-up work (see roadmap P2, §11).
 
 ## 8. API examples
 
@@ -524,12 +528,20 @@ actually actuates in this version:
   `Set` and read back over gNMI `Get`/`Subscribe` without any external
   process — the same pattern `lighty-gnmi-device-simulator` already supports
   for other gNMI-facing lighty modules.
-- **RAN CCO domain — O-RAN SC O1 NETCONF simulators (future, P2).** Once
-  `RanCcoCompiler` and the O1 PM/VES assurance ingest are implemented, the RAN
-  CCO test lab is expected to use the O-RAN Software Community's O1 NETCONF
-  simulators (the SMO's usual O1 test double) as the assured device side,
-  alongside a mocked or sandboxed A1 endpoint for policy actuation to the
-  Near-RT RIC. Nothing in this domain is wired to actuation yet, so no such
+- **RAN CCO domain, actuation — a loopback A1-P test double.** `RanCcoActuator`
+  and `HttpA1PolicyClient` are both unit-tested against an in-process
+  `com.sun.net.httpserver.HttpServer` standing in for a Near-RT RIC's A1-P
+  endpoint (`RanCcoActuatorTest`, `HttpA1PolicyClientTest`), and
+  `lighty-intent-app-aggregator`'s smoke test runs the same loopback-server
+  pattern end to end (submit a RAN CCO intent, `dry-run`, `approve-intent`,
+  assert the fake RIC received the expected `PUT`). This is enough to
+  exercise the A1-P contract itself but is not a substitute for a real
+  Near-RT RIC.
+- **RAN CCO domain, assurance — O-RAN SC O1 NETCONF simulators (future,
+  P2).** Once the O1 PM/VES assurance ingest is implemented, the RAN CCO
+  assurance test lab is expected to use the O-RAN Software Community's O1
+  NETCONF simulators (the SMO's usual O1 test double) as the assured device
+  side. Nothing in this domain's assurance path is wired up yet, so no such
   lab exists in this version — this is a target, not a description of an
   existing test resource.
 
@@ -545,9 +557,12 @@ actually actuates in this version:
     `openconfig-network-instance` modules once that dependency graph
     (`openconfig-policy-types`, `openconfig-routing-policy`,
     `openconfig-mpls-types`, `openconfig-if-ip`, etc.) is brought into lighty.
-- **P2** — RAN CCO wired to real actuation: implement `RanCcoCompiler`, an A1
-  client to the Near-RT RIC, and O1 PM/VES ingest as a RAN `AssuranceSource`,
-  against the O-RAN SC O1 simulators described in §10.
+- **P2** — RAN CCO assurance and a real policy-type schema: implement O1
+  PM/VES ingest as a RAN `AssuranceSource` against the O-RAN SC O1 simulators
+  described in §10, and replace `RanCcoCompiler`'s placeholder
+  `a1-policy-type-id` with a schema registered in the Near-RT RIC's policy-type
+  catalog. (RAN CCO actuation itself — `RanCcoCompiler`, `RanCcoActuator`, and
+  the A1-P client — is done; see §7.3, §10.)
 - **P3** — the full `IntentReport` assurance loop (periodic, not just
   best-effort, observation across domains) and the 3GPP TS 28.312 OpenAPI
   facade (`lighty-intent-openapi-facade`) for SMO/OSS interop (§3.2).

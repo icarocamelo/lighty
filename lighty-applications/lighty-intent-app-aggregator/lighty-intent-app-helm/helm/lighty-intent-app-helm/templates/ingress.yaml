@@ -1,0 +1,18 @@
+{{- if .Values.ingress.useIngress }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "lighty-intent-app-helm.fullname" . }}
+spec:
+  rules:
+    - host: {{ .Values.ingress.restconfHost }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "lighty-intent-app-helm.fullname" . }}
+                port:
+                  number: {{ .Values.lighty.restconf.restconfPort }}
+{{- end }}
