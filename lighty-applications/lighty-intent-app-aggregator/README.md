@@ -211,6 +211,47 @@ development sandbox — rendered manifests were reviewed by hand and the embedde
 a live `helm install` against a running cluster; no cluster or container registry was available to
 do so at the time this chart was added.
 
+## Why lighty.io, not a Kubernetes operator?
+
+Kubernetes already has intent-flavored tooling (Crossplane, KubeVela, custom operators reconciling
+CRDs), so it's a fair question why this engine lives in a lighty.io application instead of as
+another K8s controller. A few reasons specific to what this application actually does:
+
+- **The things being actuated are not Kubernetes objects.** `approve-intent` on a transport intent
+  writes OpenConfig over gNMI to a physical/virtual router; `approve-intent` on a RAN CCO intent
+  PUTs an A1 policy to a Near-RT RIC over A1-P REST (see `GnmiTransportActuator`,
+  `RanCcoActuator`). A K8s controller's reconcile loop is built to drive the cluster's own API
+  objects (or, via a provider like Crossplane, a cloud API) toward a declared spec; it has no
+  native notion of a gNMI session, an A1 policy type, or a `DataBroker` transaction, so a
+  Kubernetes-native version of this engine would still need to embed something equivalent to
+  `lighty-intent-transport`/`lighty-intent-ran` as controller code, just without the standards
+  model underneath it.
+- **The interoperability target is a telecom standard, not the Kubernetes API.** This engine
+  implements 3GPP TS 28.312 / O-RAN SMO Intent-Driven Management, and its `lighty-intent.yang`
+  model is deliberately exposed over RESTCONF (and designed to grow a 28.312 OpenAPI facade — see
+  `docs/intent-driven-management.md` roadmap P3) because that is what an SMO/OSS/inventory system
+  actually speaks to interoperate. A CRD schema is legible to `kubectl`, not to the rest of an
+  operator's OSS stack.
+- **lighty.io already is the substrate this needs.** Representing intents against real network
+  topology/inventory, validating and conflict-checking them transactionally, and pushing config
+  safely requires a schema-aware (YANG-bound) datastore with CONFIG/OPERATIONAL semantics and
+  NETCONF/gNMI southbound mediation — which is exactly what the lighty.io controller
+  (`lighty-core/lighty-controller`, `lighty-netconf-sb`, `lighty-gnmi-sb`) already provides and
+  what every other module in this repository is built on. Re-deriving that inside a Kubernetes
+  operator would mean rebuilding a YANG binding/codegen layer and a transactional datastore from
+  scratch, in a different language ecosystem, instead of reusing it.
+- **The lifecycle logic doesn't fit "reconcile to desired state."** Human approval gating,
+  cross-intent conflict detection over shared RF/VLAN/QoS resources, and PM/VES-based fulfilment
+  assurance (`IntentLightyModule`'s lifecycle state machine; see §2 of the design doc) are
+  intent-domain business logic, not "make actual match spec." It can be built as a controller, but
+  it's fighting the grain of controller-runtime's reconcile model rather than using a lifecycle
+  engine purpose-built for it.
+
+None of this rules Kubernetes out — it's just a different layer. The [Helm chart above](#deployment-via-helm-chart)
+uses Kubernetes for exactly what it's good at: packaging, running, and scaling this application and
+the stateless `lighty-intent-slm` sidecar, while the actual intent reconciliation against the
+network stays inside lighty.io.
+
 ## Setup logging
 
 Default logging configuration may be overridden with the JVM option
