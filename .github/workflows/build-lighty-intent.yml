@@ -1,0 +1,88 @@
+# Scoped build + test for the intent-driven-management (IDM) module: the Java
+# lighty-intent-* Maven modules and application, and the Python lighty-intent-slm
+# sidecar. Runs independently of (and faster than) the whole-repository Build
+# workflow, and is the only CI coverage lighty-intent-slm's pytest suite has.
+name: Build lighty-intent
+
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - 'lighty-models/lighty-intent-models/**'
+      - 'lighty-modules/lighty-intent/**'
+      - 'lighty-applications/lighty-intent-app-aggregator/lighty-intent-module/**'
+      - 'lighty-applications/lighty-intent-app-aggregator/lighty-intent-app/**'
+      - 'lighty-applications/lighty-intent-app-aggregator/pom.xml'
+      - 'lighty-applications/pom.xml'
+      - 'lighty-modules/pom.xml'
+      - 'lighty-models/pom.xml'
+      - 'lighty-intent-slm/**'
+      - '.github/workflows/build-lighty-intent.yml'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'lighty-models/lighty-intent-models/**'
+      - 'lighty-modules/lighty-intent/**'
+      - 'lighty-applications/lighty-intent-app-aggregator/lighty-intent-module/**'
+      - 'lighty-applications/lighty-intent-app-aggregator/lighty-intent-app/**'
+      - 'lighty-applications/lighty-intent-app-aggregator/pom.xml'
+      - 'lighty-applications/pom.xml'
+      - 'lighty-modules/pom.xml'
+      - 'lighty-models/pom.xml'
+      - 'lighty-intent-slm/**'
+      - '.github/workflows/build-lighty-intent.yml'
+
+jobs:
+  maven-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: 21
+          distribution: 'temurin'
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: 3.9.9
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Build and test lighty-intent modules
+        run: >
+          mvn -B -T1 verify
+          -pl lighty-models/lighty-intent-models,lighty-modules/lighty-intent/lighty-intent-api,lighty-modules/lighty-intent/lighty-intent-core,lighty-modules/lighty-intent/lighty-intent-transport,lighty-modules/lighty-intent/lighty-intent-ran,lighty-modules/lighty-intent/lighty-intent-nl-client,lighty-applications/lighty-intent-app-aggregator/lighty-intent-module,lighty-applications/lighty-intent-app-aggregator/lighty-intent-app
+          -am
+      - name: Upload surefire test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighty-intent-surefire-reports
+          path: '**/surefire-reports/**/*.txt'
+
+  slm-sidecar-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: lighty-intent-slm
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run pytest
+        run: pytest -v

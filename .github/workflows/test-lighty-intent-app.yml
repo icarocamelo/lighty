@@ -1,0 +1,99 @@
+# Helm/Docker smoke test for the intent-driven-management (IDM) application:
+# builds both Docker images (the lighty-intent app, via the Maven docker
+# profile, and the lighty-intent-slm sidecar, via a plain docker build), loads
+# them into a real minikube cluster, installs lighty-intent-app-helm, and
+# checks the pod actually comes up with both containers reachable - including
+# the sidecar being reachable by the app at localhost, which the static
+# `helm template` validation alone cannot prove.
+name: Test lighty-intent-app (Helm/Docker smoke test)
+
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - 'lighty-applications/lighty-intent-app-aggregator/**'
+      - 'lighty-intent-slm/**'
+      - 'lighty-modules/lighty-intent/**'
+      - 'lighty-models/lighty-intent-models/**'
+      - '.github/workflows/test-lighty-intent-app.yml'
+      - '.github/workflows/lighty-intent-app/**'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'lighty-applications/lighty-intent-app-aggregator/**'
+      - 'lighty-intent-slm/**'
+      - 'lighty-modules/lighty-intent/**'
+      - 'lighty-models/lighty-intent-models/**'
+      - '.github/workflows/test-lighty-intent-app.yml'
+      - '.github/workflows/lighty-intent-app/**'
+
+jobs:
+  helm-docker-smoke-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: 21
+          distribution: 'temurin'
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: 3.9.9
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Setup Minikube
+        uses: manusa/actions-setup-minikube@v2.14.0
+        with:
+          minikube version: 'v1.35.0'
+          kubernetes version: 'v1.33.0'
+          github token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start Minikube cluster
+        run: minikube start
+      - name: Install helm
+        uses: azure/setup-helm@v1.1
+        with:
+          version: '3.7.1'
+      - name: Helm lint and template (static validation, fails fast)
+        run: |
+          helm lint lighty-applications/lighty-intent-app-aggregator/lighty-intent-app-helm/helm/lighty-intent-app-helm
+          helm template test lighty-applications/lighty-intent-app-aggregator/lighty-intent-app-helm/helm/lighty-intent-app-helm > /dev/null
+      - name: Maven install + build lighty-intent docker image
+        run: >
+          mvn install -B -Pdocker -DskipTests
+          -pl lighty-applications/lighty-intent-app-aggregator/lighty-intent-app-docker -am
+      - name: Build lighty-intent-slm docker image
+        run: docker build -t lighty-intent-slm:latest lighty-intent-slm/
+      - name: Load docker images into Minikube
+        run: |
+          image_name=$(mvn help:evaluate -f lighty-applications/lighty-intent-app-aggregator/lighty-intent-app-docker/pom.xml -Dexpression=image.name -q -DforceStdout)
+          echo "Exporting $image_name and lighty-intent-slm to .tar ..."
+          docker save --output="./lighty-intent.tar" "$image_name"
+          docker save --output="./lighty-intent-slm.tar" lighty-intent-slm:latest
+          echo "Loading docker images into minikube"
+          docker load --input ./lighty-intent.tar
+          docker load --input ./lighty-intent-slm.tar
+          rm ./lighty-intent.tar ./lighty-intent-slm.tar
+      - name: Install lighty-intent-app-helm chart
+        run: |
+          helm install lighty-intent-app \
+            lighty-applications/lighty-intent-app-aggregator/lighty-intent-app-helm/helm/lighty-intent-app-helm
+          echo "Waiting for the pod to be created..."
+          sleep 10
+          echo "Waiting for the pod to become Ready..."
+          minikube kubectl -- wait --for=condition=Ready pod \
+            -l app.kubernetes.io/name=lighty-intent-app-helm --timeout=300s
+      - name: Run lighty-intent-app smoke test
+        run: |
+          chmod +x ${GITHUB_WORKSPACE}/.github/workflows/lighty-intent-app/tests-lighty-intent-app.sh
+          ${GITHUB_WORKSPACE}/.github/workflows/lighty-intent-app/tests-lighty-intent-app.sh
