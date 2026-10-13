@@ -7,6 +7,7 @@
  */
 package io.lighty.applications.intent.module;
 
+import io.lighty.applications.intent.module.config.A1TargetConfig;
 import io.lighty.applications.intent.module.config.GnmiTargetConfig;
 import io.lighty.applications.intent.module.config.IntentAppConfiguration;
 import io.lighty.applications.intent.module.config.NlSlmConfig;
@@ -32,7 +33,9 @@ import io.lighty.modules.intent.core.IntentLightyModule;
 import io.lighty.modules.intent.nlclient.FallbackNlTranslator;
 import io.lighty.modules.intent.nlclient.RuleBasedNlTranslator;
 import io.lighty.modules.intent.nlclient.SidecarNlTranslator;
+import io.lighty.modules.intent.ran.RanCcoActuator;
 import io.lighty.modules.intent.ran.RanCcoCompiler;
+import io.lighty.modules.intent.ran.a1.HttpA1PolicyClient;
 import io.lighty.modules.intent.transport.GnmiTransportActuator;
 import io.lighty.modules.intent.transport.TransportQosCompiler;
 import io.lighty.modules.northbound.restconf.community.impl.CommunityRestConf;
@@ -60,11 +63,11 @@ import org.slf4j.LoggerFactory;
  *
  * <ul>
  *   <li>{@link TransportQosCompiler} + {@link GnmiTransportActuator} for the
- *       {@code lighty-intent-transport:transport} domain (compiled <em>and</em> actuated);</li>
- *   <li>{@link RanCcoCompiler} for the {@code lighty-intent-ran-cco:ran} domain (compiled for
- *       {@code dry-run} only - no {@code DomainActuator} is registered for it, so
- *       {@code approve-intent} on a RAN CCO intent fails with "no actuator registered", exactly
- *       as documented as expected behaviour by lighty-intent-ran's own README);</li>
+ *       {@code lighty-intent-transport:transport} domain (compiled <em>and</em> actuated over
+ *       one configured gNMI target device);</li>
+ *   <li>{@link RanCcoCompiler} + {@link RanCcoActuator} for the {@code lighty-intent-ran-cco:ran}
+ *       domain (compiled <em>and</em> actuated as an A1 policy on one configured Near-RT RIC, via
+ *       {@link HttpA1PolicyClient});</li>
  *   <li>a {@link FallbackNlTranslator} chaining {@link SidecarNlTranslator} (the
  *       {@code lighty-intent-slm} sidecar) in front of {@link RuleBasedNlTranslator}, backing
  *       the {@code translate-nl} RPC.</li>
@@ -115,7 +118,7 @@ public class IntentAppModule {
             this.gnmiSessionProvider = connectGnmiTarget(intentAppConfig.getGnmiTargetConfig());
 
             this.intentLightyModule = initIntentModule(this.lightyController.getServices(), this.gnmiSessionProvider,
-                    intentAppConfig.getNlSlmConfig());
+                    intentAppConfig.getA1TargetConfig(), intentAppConfig.getNlSlmConfig());
             startAndWaitLightyModule(this.intentLightyModule);
 
             lightyRestconf.startServer();
@@ -167,16 +170,15 @@ public class IntentAppModule {
     }
 
     private IntentLightyModule initIntentModule(final LightyServices services,
-            final SessionProvider sessionProvider, final NlSlmConfig nlSlmConfig) {
+            final SessionProvider sessionProvider, final A1TargetConfig a1TargetConfig, final NlSlmConfig nlSlmConfig) {
         final Map<String, IntentCompiler> compilersByDomain = new HashMap<>();
         compilersByDomain.put(TransportQosCompiler.DOMAIN, new TransportQosCompiler());
         compilersByDomain.put(RanCcoCompiler.DOMAIN, new RanCcoCompiler());
 
         final Map<String, DomainActuator> actuatorsByDomain = new HashMap<>();
         actuatorsByDomain.put(GnmiTransportActuator.DOMAIN, new GnmiTransportActuator(sessionProvider));
-        // No DomainActuator is registered for RanCcoCompiler.DOMAIN in this version: dry-run
-        // works, approve-intent on a "ran" domain intent fails with a clear "no actuator
-        // registered" error, exactly as documented as expected behaviour by lighty-intent-ran.
+        actuatorsByDomain.put(RanCcoActuator.DOMAIN,
+                new RanCcoActuator(new HttpA1PolicyClient(a1TargetConfig.getBaseUrl())));
 
         final Map<String, AssuranceSource> assuranceSourcesByDomain = Map.of();
         final List<ConflictRule> conflictRules = List.of();

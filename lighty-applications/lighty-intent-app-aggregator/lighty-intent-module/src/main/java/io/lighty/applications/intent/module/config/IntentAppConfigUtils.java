@@ -39,6 +39,7 @@ public final class IntentAppConfigUtils {
     private static final Logger LOG = LoggerFactory.getLogger(IntentAppConfigUtils.class);
 
     private static final String GNMI_TARGET_ELEMENT_NAME = "gnmi-target";
+    private static final String A1_TARGET_ELEMENT_NAME = "a1-target";
     private static final String NL_SLM_ELEMENT_NAME = "nl-slm";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -53,6 +54,7 @@ public final class IntentAppConfigUtils {
         final LightyServerConfig serverConfig;
         final RestConfConfiguration restconfConfig;
         final GnmiTargetConfig gnmiTargetConfig;
+        final A1TargetConfig a1TargetConfig;
         final NlSlmConfig nlSlmConfig;
         final ModulesConfig moduleConfig;
         try {
@@ -74,6 +76,11 @@ public final class IntentAppConfigUtils {
                     GnmiTargetConfig::new);
             LOG.debug("gNMI target configuration from file loaded!");
 
+            LOG.debug("Loading A1/Near-RT RIC target configuration from file...");
+            a1TargetConfig = readOrDefault(configPath, A1_TARGET_ELEMENT_NAME, A1TargetConfig.class,
+                    A1TargetConfig::new);
+            LOG.debug("A1/Near-RT RIC target configuration from file loaded!");
+
             LOG.debug("Loading NL SLM sidecar configuration from file...");
             nlSlmConfig = readOrDefault(configPath, NL_SLM_ELEMENT_NAME, NlSlmConfig.class, NlSlmConfig::new);
             LOG.debug("NL SLM sidecar configuration from file loaded!");
@@ -85,7 +92,7 @@ public final class IntentAppConfigUtils {
             throw new ConfigurationException("Exception thrown while loading configuration!", e);
         }
         return new IntentAppConfiguration(controllerConfig, serverConfig, restconfConfig, gnmiTargetConfig,
-                nlSlmConfig, moduleConfig);
+                a1TargetConfig, nlSlmConfig, moduleConfig);
     }
 
     public static IntentAppConfiguration loadDefaultConfig() throws ConfigurationException {
@@ -110,6 +117,10 @@ public final class IntentAppConfigUtils {
         final GnmiTargetConfig gnmiTargetConfig = new GnmiTargetConfig();
         LOG.debug("Default gNMI target configuration loaded!");
 
+        LOG.debug("Loading default A1/Near-RT RIC target configuration...");
+        final A1TargetConfig a1TargetConfig = new A1TargetConfig();
+        LOG.debug("Default A1/Near-RT RIC target configuration loaded!");
+
         LOG.debug("Loading default NL SLM sidecar configuration...");
         final NlSlmConfig nlSlmConfig = new NlSlmConfig();
         LOG.debug("Default NL SLM sidecar configuration loaded!");
@@ -119,7 +130,7 @@ public final class IntentAppConfigUtils {
         LOG.debug("Default lighty.io app module configuration loaded!");
 
         return new IntentAppConfiguration(controllerConfig, serverConfig, restconfConfig, gnmiTargetConfig,
-                nlSlmConfig, moduleConfig);
+                a1TargetConfig, nlSlmConfig, moduleConfig);
     }
 
     private static <T> T readOrDefault(final Path configPath, final String elementName, final Class<T> type,

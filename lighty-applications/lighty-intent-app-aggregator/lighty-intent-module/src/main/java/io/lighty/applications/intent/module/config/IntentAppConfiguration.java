@@ -15,9 +15,9 @@ import io.lighty.server.config.LightyServerConfig;
 /**
  * Immutable holder of every configuration section {@code IntentAppModule} needs to start:
  * the lighty.io controller, RESTCONF northbound, the single gNMI target device that transport
- * intents are actuated against, the NL-to-intent SLM sidecar base URL, and the generic
- * module-timeout section shared with lighty-rnc-app-aggregator's own configuration
- * ({@code io.lighty.applications.util.ModulesConfig}).
+ * intents are actuated against, the single Near-RT RIC that RAN CCO intents are actuated
+ * against, the NL-to-intent SLM sidecar base URL, and the generic module-timeout section shared
+ * with lighty-rnc-app-aggregator's own configuration ({@code io.lighty.applications.util.ModulesConfig}).
  */
 public class IntentAppConfiguration {
 
@@ -25,17 +25,19 @@ public class IntentAppConfiguration {
     private final LightyServerConfig serverConfig;
     private final RestConfConfiguration restconfConfig;
     private final GnmiTargetConfig gnmiTargetConfig;
+    private final A1TargetConfig a1TargetConfig;
     private final NlSlmConfig nlSlmConfig;
     private final ModulesConfig moduleConfig;
 
     public IntentAppConfiguration(final ControllerConfiguration controllerConfig,
             final LightyServerConfig serverConfig, final RestConfConfiguration restconfConfig,
-            final GnmiTargetConfig gnmiTargetConfig, final NlSlmConfig nlSlmConfig,
-            final ModulesConfig moduleConfig) {
+            final GnmiTargetConfig gnmiTargetConfig, final A1TargetConfig a1TargetConfig,
+            final NlSlmConfig nlSlmConfig, final ModulesConfig moduleConfig) {
         this.controllerConfig = controllerConfig;
         this.serverConfig = serverConfig;
         this.restconfConfig = restconfConfig;
         this.gnmiTargetConfig = gnmiTargetConfig;
+        this.a1TargetConfig = a1TargetConfig;
         this.nlSlmConfig = nlSlmConfig;
         this.moduleConfig = moduleConfig;
     }
@@ -54,6 +56,10 @@ public class IntentAppConfiguration {
 
     public GnmiTargetConfig getGnmiTargetConfig() {
         return gnmiTargetConfig;
+    }
+
+    public A1TargetConfig getA1TargetConfig() {
+        return a1TargetConfig;
     }
 
     public NlSlmConfig getNlSlmConfig() {

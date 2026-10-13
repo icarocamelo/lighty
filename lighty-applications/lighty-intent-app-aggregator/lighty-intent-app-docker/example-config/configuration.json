@@ -53,6 +53,9 @@
         "port": 10161,
         "usePlainText": true
     },
+    "a1-target": {
+        "baseUrl": "http://near-rt-ric:9990"
+    },
     "nl-slm": {
         "baseUrl": "http://intent-slm:8000"
     }

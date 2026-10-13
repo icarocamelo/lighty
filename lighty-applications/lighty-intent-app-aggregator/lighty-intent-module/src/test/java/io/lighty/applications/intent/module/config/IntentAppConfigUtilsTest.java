@@ -49,6 +49,9 @@ class IntentAppConfigUtilsTest {
         assertEquals("gnmi-user", gnmiTargetConfig.getUsername());
         assertEquals("gnmi-pass", gnmiTargetConfig.getPassword());
 
+        final var a1TargetConfig = intentAppConfig.getA1TargetConfig();
+        assertEquals("http://near-rt-ric-test:9990", a1TargetConfig.getBaseUrl());
+
         final var nlSlmConfig = intentAppConfig.getNlSlmConfig();
         assertEquals("http://intent-slm-test:8000", nlSlmConfig.getBaseUrl());
 
@@ -67,6 +70,9 @@ class IntentAppConfigUtilsTest {
         assertEquals("127.0.0.1", gnmiTargetConfig.getHost());
         assertEquals(10161, gnmiTargetConfig.getPort());
         assertTrue(gnmiTargetConfig.isUsePlainText());
+
+        final var a1TargetConfig = intentAppConfig.getA1TargetConfig();
+        assertEquals("http://127.0.0.1:9990", a1TargetConfig.getBaseUrl());
 
         final var nlSlmConfig = intentAppConfig.getNlSlmConfig();
         assertEquals("http://localhost:8000", nlSlmConfig.getBaseUrl());

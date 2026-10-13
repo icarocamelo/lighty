@@ -13,16 +13,21 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.net.httpserver.HttpServer;
 import io.lighty.applications.intent.module.config.IntentAppConfigUtils;
 import io.lighty.modules.gnmi.simulatordevice.config.GnmiSimulatorConfiguration;
 import io.lighty.modules.gnmi.simulatordevice.impl.SimulatedGnmiDevice;
 import io.lighty.modules.gnmi.simulatordevice.utils.GnmiSimulatorConfUtils;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import org.eclipse.jetty.http.HttpStatus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,12 +35,13 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Smoke test that starts the whole {@code IntentAppModule} (LightyController + RESTCONF +
- * lighty-intent-core, wired up with the transport/RAN-CCO compilers, the gNMI actuator, and the
- * NL translator chain) against the default configuration, backed by a real in-process gNMI
+ * lighty-intent-core, wired up with the transport/RAN-CCO compilers, both domain actuators, and
+ * the NL translator chain) against the default configuration, backed by a real in-process gNMI
  * device simulator ({@code lighty-gnmi-device-simulator}) standing in for the configured
- * transport target - mirroring the "start a real backing service in the test" pattern
+ * transport target, and a loopback {@link HttpServer} standing in for the configured Near-RT RIC
+ * - mirroring the "start a real backing service in the test" pattern
  * {@code lighty-intent-transport}'s own {@code GnmiTransportActuatorIT} already uses - then
- * drives one full intent lifecycle over RESTCONF end to end: submit, dry-run, approve.
+ * drives full intent lifecycles over RESTCONF end to end: submit, dry-run, approve.
  */
 class IntentAppModuleSmokeTest {
 
@@ -45,11 +51,15 @@ class IntentAppModuleSmokeTest {
     // Matches GnmiTargetConfig's own defaults (host 127.0.0.1, port 10161, plaintext).
     private static final String GNMI_TARGET_HOST = "127.0.0.1";
     private static final int GNMI_TARGET_PORT = 10161;
+    // Matches A1TargetConfig's own default baseUrl (http://127.0.0.1:9990).
+    private static final int A1_RIC_PORT = 9990;
 
     private final ObjectMapper mapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final BlockingQueue<CapturedA1Request> capturedA1Requests = new ArrayBlockingQueue<>(10);
 
     private SimulatedGnmiDevice gnmiTarget;
+    private HttpServer nearRtRic;
     private IntentAppModule intentAppModule;
 
     @BeforeEach
@@ -62,6 +72,14 @@ class IntentAppModuleSmokeTest {
         gnmiTarget = new SimulatedGnmiDevice(simulatorConfiguration);
         gnmiTarget.start();
 
+        nearRtRic = HttpServer.create(new InetSocketAddress("127.0.0.1", A1_RIC_PORT), 0);
+        nearRtRic.createContext("/A1-P/v2/policytypes/", exchange -> {
+            capturedA1Requests.add(new CapturedA1Request(exchange.getRequestMethod(), exchange.getRequestURI().getPath()));
+            exchange.sendResponseHeaders(HttpStatus.OK_200, 0);
+            exchange.close();
+        });
+        nearRtRic.start();
+
         intentAppModule = new IntentAppModule(IntentAppConfigUtils.loadDefaultConfig());
         assertTrue(intentAppModule.initModules(), "IntentAppModule failed to initialize");
     }
@@ -73,6 +91,9 @@ class IntentAppModuleSmokeTest {
         }
         if (gnmiTarget != null) {
             gnmiTarget.stop();
+        }
+        if (nearRtRic != null) {
+            nearRtRic.stop(0);
         }
     }
 
@@ -120,7 +141,7 @@ class IntentAppModuleSmokeTest {
     }
 
     @Test
-    void ranCcoIntentDryRunsButHasNoRegisteredActuator() throws Exception {
+    void ranCcoIntentLifecycleDeploysAsAnA1Policy() throws Exception {
         final String intentId = "intent-smoke-ran-1";
         final String intentJson = "{\n"
                 + "  \"lighty-intent:intent\": [ {\n"
@@ -146,14 +167,25 @@ class IntentAppModuleSmokeTest {
 
         waitForLifecycleState(intentId, "AWAITING_APPROVAL");
 
+        final var dryRunResponse = httpClient.send(postRequest(BASE_URI + "/operations/lighty-intent:dry-run",
+                "{\"input\": {\"intent-id\": \"" + intentId + "\"}}"), BodyHandlers.ofString());
+        assertEquals(HttpStatus.OK_200, dryRunResponse.statusCode());
+        final JsonNode dryRunOutput = mapper.readTree(dryRunResponse.body()).path("lighty-intent:output");
+        assertTrue(dryRunOutput.path("feasible").asBoolean(), "expected sample intent to compile to a feasible plan");
+        assertTrue(dryRunOutput.path("rendered-config-json").asText().contains("a1-policy-type-id"));
+
         final var approveResponse = httpClient.send(postRequest(BASE_URI + "/operations/lighty-intent:approve-intent",
                 "{\"input\": {\"intent-id\": \"" + intentId + "\", \"approved-by\": \"smoke-test\"}}"),
                 BodyHandlers.ofString());
         assertEquals(HttpStatus.OK_200, approveResponse.statusCode());
         final String lifecycleState = mapper.readTree(approveResponse.body()).path("lighty-intent:output")
                 .path("lifecycle-state").asText();
-        assertEquals("FAILED", lifecycleState, "expected approve-intent on a 'ran' domain intent to fail cleanly,"
-                + " as no DomainActuator is registered for it in this version");
+        assertEquals("ACTIVE", lifecycleState, "expected the plan to actually deploy as an A1 policy on the RIC");
+
+        final CapturedA1Request a1Request = capturedA1Requests.poll(5, TimeUnit.SECONDS);
+        assertEquals("PUT", a1Request.method());
+        assertEquals("/A1-P/v2/policytypes/org.o-ran-sc.ies.trafficsteering:1.0.0/policies/" + intentId,
+                a1Request.path());
     }
 
     @Test
@@ -213,5 +245,8 @@ class IntentAppModuleSmokeTest {
                 .timeout(Duration.ofSeconds(30))
                 .POST(BodyPublishers.ofString(body))
                 .build();
+    }
+
+    private record CapturedA1Request(String method, String path) {
     }
 }

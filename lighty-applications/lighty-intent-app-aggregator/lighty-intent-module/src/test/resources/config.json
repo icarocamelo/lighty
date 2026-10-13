@@ -56,6 +56,9 @@
         "username": "gnmi-user",
         "password": "gnmi-pass"
     },
+    "a1-target": {
+        "baseUrl": "http://near-rt-ric-test:9990"
+    },
     "nl-slm": {
         "baseUrl": "http://intent-slm-test:8000"
     }
